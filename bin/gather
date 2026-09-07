@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 """一次把几个词的材料全取回来：词形、分层分布、检索，并发发出，一次吐一份摘要。
 
-    bin/gather lasuṇa
-    bin/gather sāriputta upatissa --limit 40
-    bin/gather parivāsa --tags vinaya
+    python3 bin/gather lasuṇa
+    python3 bin/gather sāriputta upatissa --limit 40
+    python3 bin/gather parivāsa --tags vinaya
 
 比一条条敲快，少来回好几趟。
 
@@ -31,7 +31,10 @@ MAX_PARALLEL = 6
 def wp(args):
     """跑一次 bin/wp，返回 (成功?, 文本)。失败不抛，让别的词照常进行。"""
     try:
-        p = subprocess.run([WP] + args, capture_output=True, timeout=120)
+        # ⚠️ 必须显式用 sys.executable 起 bin/wp，不能直接执行它——
+        #    直接执行靠的是 shebang 与可执行位，**Windows 上两样都没有**。
+        p = subprocess.run([sys.executable, WP] + args,
+                           capture_output=True, timeout=120)
     except subprocess.TimeoutExpired:
         return False, "（超时）"
     out = (p.stdout or b"").decode("utf-8", "replace").strip()
@@ -45,7 +48,7 @@ def head(text, n):
     lines = [l for l in text.splitlines() if l.strip()]
     more = len(lines) - n
     body = "\n".join(lines[:n])
-    return body + (("\n  …（还有 %d 行，要全文自己跑 bin/wp）" % more) if more > 0 else "")
+    return body + (("\n  …（还有 %d 行，要全文自己跑 python3 bin/wp）" % more) if more > 0 else "")
 
 
 def main():
@@ -100,7 +103,7 @@ def main():
         print()
 
     print("─" * 66)
-    print("下一步：从上面的命中里挑坐标，用 bin/wp get <坐标> <坐标> … 取原文。")
+    print("下一步：从上面的命中里挑坐标，用 python3 bin/wp get <坐标> <坐标> … 取原文。")
     print("⚠️ 命中的常常是**标题**，正文在后面——记得往后连读（见 SKILL.md）。")
 
 

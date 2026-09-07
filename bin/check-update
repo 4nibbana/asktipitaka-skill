@@ -1,57 +1,59 @@
-#!/bin/sh
-# 会话开头跑一次：有新版就**自己装上**，不用问使用者、不用他打任何命令。
-#
-#     bin/check-update            # 默认：该更新就更新。没更新时一个字都不打印
-#     bin/check-update --dry-run  # 只看有没有新版，不动文件（0=已最新，10=有新版）
-#
-# ⚠️ 为什么是「自动更新」而不是「提示一句让他自己去跑」：
-#    使用者不一定懂命令行——多数人是跟自己的 AI 说话，不是敲终端。
-#    「打印一行让他自己去 bash install.sh」＝ **他会永远停在旧版**。
-#    所以只要**本地一个跟踪文件都没改过**，这里就直接切到线上最新版。
-#    ⚠️ 只有本地改过文件才停下来说一声：那种情况下强切会毁掉他自己的东西。
-#
-# ⚠️ 这里不写死仓库地址，靠 `git remote` 拿——这样将来仓库换了名字或换了地方，
-#    这个脚本不用改。
-set -eu
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""会话开头跑一次：有新版就**自己装上**，不用问使用者、不用他打任何命令。
 
-HERE=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-DRY=0
-[ "${1:-}" = "--dry-run" ] && DRY=1
+    python3 bin/check-update            # 默认：该更新就更新。没更新时一个字都不打印
+    python3 bin/check-update --dry-run  # 只看有没有新版，不动文件（0=已最新，10=有新版）
 
-# 不是 git 装的（比如手动解压），没法比对，直接当已是最新
-[ -d "$HERE/.git" ] || exit 0
+⚠️ 为什么是「自动装」而不是「提示一句让他自己去跑」：
+   使用者不一定懂命令行——多数人是跟自己的 AI 说话，不是敲终端。
+   「打印一行让他自己去跑安装」＝ **他会永远停在旧版**。
 
-# 取不到远端就静默退出：离线、防火墙、GitHub 抽风都不该打断使用者提问
-git -C "$HERE" fetch -q --depth 1 origin main 2>/dev/null || exit 0
+⚠️ 为什么是 Python 不是 sh：**Windows 没有 sh**。上一版是 sh 脚本，
+   在那些机器上连跑都跑不起来——「自动更新」建在一个不是人人都有的东西上。
 
-LOCAL=$(git -C "$HERE" rev-parse HEAD 2>/dev/null || echo local)
-REMOTE=$(git -C "$HERE" rev-parse FETCH_HEAD 2>/dev/null || echo remote)
+不自动装的唯一情况是**本地改过文件**（只有 git 装的那份能判断），
+那时说一声、列出改了哪些，交给使用者决定。
+"""
+import os
+import sys
 
-[ "$LOCAL" = "$REMOTE" ] && exit 0
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib"))
+import portable  # noqa: E402
 
-NOW=$(cat "$HERE/VERSION" 2>/dev/null | tr -d '[:space:]')
-NEW=$(git -C "$HERE" show FETCH_HEAD:VERSION 2>/dev/null | tr -d '[:space:]')
+HERE = portable.root_of(__file__)
 
-[ "$DRY" -eq 1 ] && exit 10
 
-# ── 本地改过文件：不动它，说一声就好 ──────────────────────
-if ! git -C "$HERE" diff-index --quiet HEAD -- 2>/dev/null; then
-    printf '问藏 skill 有新版本：%s → %s，但本地改过文件，没有自动更新。\n' \
-           "${NOW:-?}" "${NEW:-?}"
-    printf '改过的是：\n'
-    git -C "$HERE" diff-index --name-only HEAD -- 2>/dev/null | sed 's/^/    /'
-    printf '确认这些改动不要了，就跑：git -C "%s" checkout -B main FETCH_HEAD\n' "$HERE"
-    exit 0
-fi
+def main():
+    dry = "--dry-run" in sys.argv[1:]
 
-# ── 干净：直接切到线上最新版 ──────────────────────────────
-# ⚠️ 用 checkout -B 而不是 pull／merge --ff-only：装机都是 --depth 1 浅克隆，
-#    浅克隆里根本判不了「能不能快进」，用 pull 连正常升级都会失败。
-#    -B 还顺带把 detached HEAD（按 tag 克隆的）接回 main。
-git -C "$HERE" checkout -q -B main FETCH_HEAD
+    if dry:
+        slug = portable.repo_slug(HERE)
+        if not slug:
+            return 0
+        new = portable.remote_version(slug)
+        if new is None:                      # 连不上：静默当作已最新
+            return 0
+        return 0 if new == portable.version(HERE) else 10
 
-# 顺手把底座也带到最新并自检一遍。install.sh 里那一套已经写好了，不重复实现。
-# （它自己会先查一次更新，此刻已是最新，所以不会绕回来。）
-sh "$HERE/install.sh" >/dev/null 2>&1 || true
+    state, old, new = portable.self_update(HERE)
 
-printf '✓ 问藏 skill 已自动更新：%s → %s\n' "${NOW:-?}" "${NEW:-?}"
+    if state == "updated":
+        # 顺手把底座也带到最新，免得只更新了外壳。⛔ 全程静默，不刷屏。
+        try:
+            portable.ensure_base(HERE, quiet=True)
+        except Exception:
+            pass
+        print("✓ 问藏 skill 已自动更新：%s → %s" % (old or "?", new or "?"))
+    elif state == "dirty":
+        print("问藏 skill 有新版本，但本地改过文件，没有自动更新。")
+        print("改过的是：")
+        for f in portable.dirty_files(HERE):
+            print("    " + f)
+        print('确认这些改动不要了，就跑：git -C "%s" checkout -B main FETCH_HEAD' % HERE)
+    # same / offline → 一个字都不打印，直接往下走
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

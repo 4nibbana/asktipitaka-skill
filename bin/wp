@@ -1,37 +1,52 @@
-#!/bin/sh
-# WikiPali 检索 CLI 的入口。SKILL.md 里一律用 `bin/wp`，不要直接写 `wikipali`
-# ——使用者的机器上它可能在三个地方之一，这里统一解析，省得每次判断。
-#
-#     bin/wp forms parivāsa
-#     bin/wp dist --lemma parivāsa
-#     bin/wp search --lemma parivāsa --limit 40
-#     bin/wp get 141:63
-set -eu
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""WikiPali 检索 CLI 的入口。SKILL.md 里一律用 `python3 bin/wp`，不要直接写 `wikipali`
+——使用者的机器上它可能在三个地方之一，这里统一解析，省得每次判断。
 
-HERE=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+    python3 bin/wp forms parivāsa
+    python3 bin/wp dist --lemma parivāsa
+    python3 bin/wp search --lemma parivāsa --limit 40
+    python3 bin/wp get 141:63
 
-# 找顺序：显式指定 → 系统里已装的 → 本包 install.sh 取下来的
-if [ -n "${WIKIPALI_CLI:-}" ] && [ -x "${WIKIPALI_CLI}" ]; then
-    CLI="$WIKIPALI_CLI"
-elif command -v wikipali >/dev/null 2>&1; then
-    CLI=$(command -v wikipali)
-elif [ -f "$HERE/.wikipali/plugins/wikipali/bin/wikipali" ]; then
-    CLI="$HERE/.wikipali/plugins/wikipali/bin/wikipali"
-else
-    cat >&2 <<EOF
-✗ 找不到 WikiPali 检索 CLI（这是检索的底座）。
+⚠️ 2026-09-07 从 sh 改写成 Python。原因：**Windows 没有 sh**，
+   原先那版在那些机器上根本跑不起来——检索入口跑不起来，整个 skill 就是死的。
+   Python 是本 skill 本来就必须有的东西（选词层就是 Python），sh 不是。
+"""
+import os
+import sys
 
-  跑一次安装就有了：
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib"))
+import portable  # noqa: E402
 
-      bash "$HERE/install.sh"
+HERE = portable.root_of(__file__)
 
-EOF
-    exit 127
-fi
 
-case "$CLI" in
-    *.py) exec python3 "$CLI" "$@" ;;
-esac
-# 检索 CLI 的入口是 Python 脚本但没有扩展名，直接交给 python3 最稳
-# （有些系统上它没有可执行位，或者 shebang 指向的 python 不对）
-exec python3 "$CLI" "$@"
+def find_cli():
+    # 找顺序：显式指定 → 系统里已装的 → 本包 install 取下来的
+    env = os.environ.get("WIKIPALI_CLI")
+    if env and os.path.isfile(env):
+        return env
+    import shutil
+    p = shutil.which("wikipali")
+    if p:
+        return p
+    p = portable.cli_path(HERE)
+    return p if os.path.isfile(p) else None
+
+
+def main():
+    cli = find_cli()
+    if not cli:
+        sys.stderr.write(
+            "\n✗ 找不到 WikiPali 检索 CLI（这是检索的底座）。\n\n"
+            "  跑一次安装就有了：\n\n"
+            "      python3 \"%s\"\n\n" % os.path.join(HERE, "install.py"))
+        return 127
+    # 检索 CLI 的入口是 Python 脚本但没有扩展名，直接交给 python 最稳
+    # （有些系统上它没有可执行位，或者 shebang 指向的 python 不对）。
+    import subprocess
+    return subprocess.call([sys.executable, cli] + sys.argv[1:])
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -8,7 +8,7 @@ description: "用中文向巴利三藏提问，给出带可回查坐标的答案
 **一句话：用中文问，去巴利三藏原典里找答案，每句都带可回查的坐标。**
 
 数据库来自 **WikiPali** 网站，检索功能建立在 **wikipali research** 的基础上
-（`install.sh` 会自动取好）。在这个基础上，本 skill 接上中文这一头：
+（`python3 install.py` 会自动取好）。在这个基础上，本 skill 接上中文这一头：
 
 1. **中文问题 → 该查哪个巴利词**；
 2. **一套取数配方**——每步取多少、什么时候往后连读，都有定数。
@@ -17,28 +17,30 @@ description: "用中文向巴利三藏提问，给出带可回查坐标的答案
 
 ## 开始之前：确认装好了
 
-**检索用的是 `bin/wp`**（本包目录下），它会自己找到 WikiPali 检索 CLI。
+**检索用的是 `python3 bin/wp`**（本包目录下），它会自己找到 WikiPali 检索 CLI。
 
 ```bash
-bin/wp forms parivāsa      # 能出词形列表就是好的
+python3 bin/wp forms parivāsa      # 能出词形列表就是好的
 ```
 
 若报「找不到 WikiPali 检索 CLI」，**跑一次安装即可，不用问使用者**：
 
 ```bash
-bash install.sh
+python3 install.py
 ```
 
 它会把底座取好并自检。**没有别的东西要装**——不需要登录、不需要 `pip install`、
 不需要插件市场。本包自己只用 Python 标准库。
 
-⚠️ 下面所有命令都写成 `bin/wp …`。**别改成 `wikipali …`** —— 使用者机器上
+⚠️ 下面所有命令都写成 `python3 bin/wp …`。**别改成 `wikipali …`** —— 使用者机器上
 那个命令未必在 PATH 上，`bin/wp` 才是统一入口。
+⚠️ **一律带 `python3` 前缀**，别直接执行 `bin/wp`——那靠的是可执行位与 shebang，
+**Windows 两样都没有**。`python3` 不认就用 `python`。
 
 **每次会话开头跑一次**（只跑一次，⛔ 不要每次提问都跑）：
 
 ```bash
-bin/check-update
+python3 bin/check-update
 ```
 
 **有新版它会自己装上**，你什么都不用做，也不用问使用者——
@@ -46,7 +48,7 @@ bin/check-update
 没有新版、或者离线，它什么都不打印，直接往下走。
 
 ⚠️ **为什么是自动装、不是问一句**：使用者多数是跟你说话，不是敲终端。
-「提示他自己去跑 `install.sh`」＝ **他会永远停在旧版**。
+「提示他自己去跑安装」＝ **他会永远停在旧版**。
 唯一不自动装的情况是**本地改过文件**——那时它会说一声并列出改了哪些，
 ⛔ 那种情况**别替使用者决定**，把话转告他就行。
 
@@ -59,7 +61,7 @@ bin/check-update
 1. **每一条写进答案的引用，必须带得回坐标。** 手里没有坐标的内容，
    一个字都不许写进答案。宁可说「本次检索没有找到」，也不要凭印象转述。
 
-2. **检索前必须先展开词形**（`bin/wp forms`，或给 `search --lemma`）。
+2. **检索前必须先展开词形**（`python3 bin/wp forms`，或给 `search --lemma`）。
    直接拿词典形去搜会 **返回 0 条且不报错**——这是最容易犯的错，
    因为它看起来像「搜过了，没有」。
 
@@ -126,10 +128,10 @@ python3 lib/pickwords.py "使用者的问题原文" --json
 
 **每一步的上限都是量出来的，别自行放大。**
 
-### ⚡ 先说最要紧的一条：**用 `bin/gather`，别一步步敲**
+### ⚡ 先说最要紧的一条：**用 `python3 bin/gather`，别一步步敲**
 
 ```bash
-bin/gather <词> <词> …          # 词形＋分层分布＋检索，一次全取回来
+python3 bin/gather <词> <词> …          # 词形＋分层分布＋检索，一次全取回来
 ```
 
 它把每个词的三个接口、以及多个词之间，**全部并发**发出去，一次吐一份摘要。
@@ -139,16 +141,16 @@ bin/gather <词> <词> …          # 词形＋分层分布＋检索，一次全
 **取回来之后再按坐标取原文**：
 
 ```bash
-bin/wp get <坐标> <坐标> …      # 缺省给巴利原文
+python3 bin/wp get <坐标> <坐标> …      # 缺省给巴利原文
 ```
 
-需要单独跑某一个接口时（复查、翻页、换收窄条件），还是用 `bin/wp`：
+需要单独跑某一个接口时（复查、翻页、换收窄条件），还是用 `python3 bin/wp`：
 
 ```bash
-bin/wp forms <词>                      # 铁律 2：永远的第一步
-bin/wp dist --lemma <词>               # 分层分布
-bin/wp search --lemma <词> --limit 40  # 一次 40 条
-bin/wp related <坐标>                  # 本文 ↔ 注疏对查
+python3 bin/wp forms <词>                      # 铁律 2：永远的第一步
+python3 bin/wp dist --lemma <词>               # 分层分布
+python3 bin/wp search --lemma <词> --limit 40  # 一次 40 条
+python3 bin/wp related <坐标>                  # 本文 ↔ 注疏对查
 ```
 
 | 规矩 | 数 | 为什么是这个数 |
@@ -171,7 +173,7 @@ bin/wp related <坐标>                  # 本文 ↔ 注疏对查
 **命中太多、40 条里没找到想要的，就翻页**：
 
 ```bash
-bin/wp search --lemma <词> --limit 40 --offset 40    # 第二页
+python3 bin/wp search --lemma <词> --limit 40 --offset 40    # 第二页
 ```
 
 ⚠️ 高频词（几百上千段命中）常常要翻两三页才见到定义段——
@@ -182,8 +184,8 @@ bin/wp search --lemma <词> --limit 40 --offset 40    # 第二页
 先查该段有哪些译本通道，拿到中文那个的 uid，再指定它取：
 
 ```bash
-bin/wp versions <坐标>              # 看这一段有哪些译本
-bin/wp get <坐标> --channel <uid>   # 取指定译本
+python3 bin/wp versions <坐标>              # 看这一段有哪些译本
+python3 bin/wp get <坐标> --channel <uid>   # 取指定译本
 ```
 
 ⚠️ **别猜 channel 名**——猜错一律 HTTP 500。
@@ -197,7 +199,7 @@ bin/wp get <坐标> --channel <uid>   # 取指定译本
 - 读多少：**列举类 12 段／找某部经 10 段／故事 20 段**，合计 ≤20 段；
 - **「某词什么意思」这类定义题不用连读。**
 
-**层次不齐时的兜底**（`bin/wp related <坐标>`）：
+**层次不齐时的兜底**（`python3 bin/wp related <坐标>`）：
 
 - 一条**根本**都没取到 → 从义注／复注反查它注释的经文；
 - 一条**义注／复注**都没取到 → 从根本反查它的注疏。

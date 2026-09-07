@@ -59,20 +59,26 @@
 
 ```bash
 git clone --depth 1 https://github.com/dhammananda-bhikkhu/asktipitaka-skill ~/.asktipitaka
-bash ~/.asktipitaka/install.sh
+python3 ~/.asktipitaka/install.py
 ```
 
+**没有 git 也能装**：把这个仓库下载成 zip、解压到 `~/.asktipitaka`，
+然后同样跑 `python3 ~/.asktipitaka/install.py`。
+
+⚠️ **只需要 Python 3，别的什么都不要**——不需要 git，不需要命令行外壳，
+不需要登录、`pip install`、插件市场。Windows 上 `python3` 不认就改用 `python`。
+
 装完读 `~/.asktipitaka/SKILL.md`，以后使用者用中文问三藏相关的问题就按那份流程走。
-`install.sh` 会把检索底座一并取好并自检，**没有别的东西要装**——
-不需要登录、不需要 `pip install`、不需要插件市场。
+`install.py` 会把检索底座一并取好并自检。
 
-更新：**不用管**。你的 AI 每次开新会话会自己查一次，有新版就自己装上。
+更新：**不用管**。你的 AI 每次开新会话会自己查一次，有新版就自己装上——
+有 git 就走 git，没有就整包下载（压缩后约 0.2 MB）。
+连不上网就静默跳过，绝不打断提问。
 
-（想手动更新也行：重跑 `install.sh`。它会先更新本 skill，再更新底座，然后自检。）
+（想手动更新也行：重跑 `python3 install.py`。）
 
-⚠️ **前提是这份是 `git clone` 来的。** 手工拷贝／解压的那份没有 `.git`，
-自动更新对它无效，只能再拷一次新的。
-`bin/check-update` 只查不装，适合每次会话开头跑一次。
+⚠️ **别在这个文件夹里改文件。** `git clone` 装的那份，改过了更新会停下来问你；
+下载解压装的那份没办法判断，更新时会被整包覆盖。
 
 > 如果使用者的环境有 skills 目录，把这个仓库放进去也行；
 > `SKILL.md` 的 frontmatter 已写好触发条件。
@@ -97,8 +103,8 @@ bash ~/.asktipitaka/install.sh
 3. **`bin/gather`：一条命令把材料一次取回来。**
 
 ```bash
-bin/gather lasuṇa               # 词形＋分层分布＋检索，一次到齐
-bin/gather sāriputta upatissa   # 多个词也一起
+python3 bin/gather lasuṇa               # 词形＋分层分布＋检索，一次到齐
+python3 bin/gather sāriputta upatissa   # 多个词也一起
 ```
 
 比一条条敲快，少来回好几趟。
@@ -121,10 +127,10 @@ $ python3 lib/pickwords.py "有一个名字叫荤腥的外道吗"
 检索也可以，`bin/wp` 就是底座的入口：
 
 ```bash
-bin/wp forms parivāsa                      # 展开词形（永远的第一步）
-bin/wp dist --lemma parivāsa               # 看本文/义注/复注怎么分布
-bin/wp search --lemma parivāsa --limit 40  # 检索
-bin/wp get 141:63                          # 按坐标取原文
+python3 bin/wp forms parivāsa                      # 展开词形（永远的第一步）
+python3 bin/wp dist --lemma parivāsa               # 看本文/义注/复注怎么分布
+python3 bin/wp search --lemma parivāsa --limit 40  # 检索
+python3 bin/wp get 141:63                          # 按坐标取原文
 ```
 
 ---
