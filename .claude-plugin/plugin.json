@@ -1,0 +1,16 @@
+{
+  "name": "asktipitaka",
+  "description": "用中文向巴利三藏提问，给出带可回查坐标的答案。把中文问题转成该检索的巴利词（17059 条权威译名表），按一套实测出来的取数配方检索原文，再依据材料写答案，每条引用附 [书号:段号]。跑一次 install.sh 即可，检索底座会自动取好，不需登录、不需 pip、不需插件市场。",
+  "version": "1.3.0",
+  "license": "MIT",
+  "keywords": [
+    "pali",
+    "tipitaka",
+    "wikipali",
+    "buddhist-studies",
+    "chinese",
+    "中文",
+    "巴利",
+    "三藏"
+  ]
+}

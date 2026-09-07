@@ -1,0 +1,37 @@
+#!/bin/sh
+# WikiPali 检索 CLI 的入口。SKILL.md 里一律用 `bin/wp`，不要直接写 `wikipali`
+# ——使用者的机器上它可能在三个地方之一，这里统一解析，省得每次判断。
+#
+#     bin/wp forms parivāsa
+#     bin/wp dist --lemma parivāsa
+#     bin/wp search --lemma parivāsa --limit 40
+#     bin/wp get 141:63
+set -eu
+
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+
+# 找顺序：显式指定 → 系统里已装的 → 本包 install.sh 取下来的
+if [ -n "${WIKIPALI_CLI:-}" ] && [ -x "${WIKIPALI_CLI}" ]; then
+    CLI="$WIKIPALI_CLI"
+elif command -v wikipali >/dev/null 2>&1; then
+    CLI=$(command -v wikipali)
+elif [ -f "$HERE/.wikipali/plugins/wikipali/bin/wikipali" ]; then
+    CLI="$HERE/.wikipali/plugins/wikipali/bin/wikipali"
+else
+    cat >&2 <<EOF
+✗ 找不到 WikiPali 检索 CLI（这是检索的底座）。
+
+  跑一次安装就有了：
+
+      bash "$HERE/install.sh"
+
+EOF
+    exit 127
+fi
+
+case "$CLI" in
+    *.py) exec python3 "$CLI" "$@" ;;
+esac
+# 检索 CLI 的入口是 Python 脚本但没有扩展名，直接交给 python3 最稳
+# （有些系统上它没有可执行位，或者 shebang 指向的 python 不对）
+exec python3 "$CLI" "$@"

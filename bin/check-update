@@ -1,0 +1,31 @@
+#!/bin/sh
+# 看看有没有新版。给 SKILL.md 用：每次会话开头跑一次，**不要每次提问都跑**。
+#
+#     bin/check-update          # 有新版就说一句，没有就静默
+#     bin/check-update --quiet  # 只用退出码：0=已是最新，10=有新版
+#
+# ⚠️ 这里不写死仓库地址，靠 `git remote` 拿——这样将来仓库换了名字或换了地方，
+#    这个脚本不用改。
+set -eu
+
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+QUIET=0
+[ "${1:-}" = "--quiet" ] && QUIET=1
+
+# 不是 git 装的（比如手动解压），没法比对，直接当已是最新
+[ -d "$HERE/.git" ] || exit 0
+
+# 取不到远端就静默退出：离线、防火墙、GitHub 抽风都不该打断使用者提问
+git -C "$HERE" fetch -q --depth 1 origin main 2>/dev/null || exit 0
+
+LOCAL=$(git -C "$HERE" rev-parse HEAD 2>/dev/null || echo local)
+REMOTE=$(git -C "$HERE" rev-parse FETCH_HEAD 2>/dev/null || echo remote)
+
+[ "$LOCAL" = "$REMOTE" ] && exit 0
+
+[ "$QUIET" -eq 1 ] && exit 10
+
+NEW=$(git -C "$HERE" show FETCH_HEAD:VERSION 2>/dev/null | tr -d '[:space:]')
+NOW=$(cat "$HERE/VERSION" 2>/dev/null | tr -d '[:space:]')
+printf '问藏 skill 有新版本：%s → %s\n' "${NOW:-?}" "${NEW:-?}"
+printf '更新：bash "%s/install.sh"\n' "$HERE"
