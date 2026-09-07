@@ -26,25 +26,38 @@ say "✓ python3 $(python3 -c 'import sys;print(".".join(map(str,sys.version_inf
 # ── 2. 先更新本 skill 自己 ────────────────────────────────
 # ⚠️ 这一步以前没有：重跑 install.sh 只更新底座、不更新 skill 本身，
 #    于是「重跑一次就是更新」这句话是假的。现在真了。
+#
+# ⚠️ 2026-09-07 加「历史对不上也能自动跟上」。为什么：
+#    公开库重建过一次历史，于是**已经装过的人再跑 install.sh 一律卡在
+#    「更新失败」**，得自己手敲一条 reset --hard 才跟得上——这对普通使用者是个坑。
+#    现在只要本地一个跟踪文件都没改过，就直接切到线上最新版，不用人动手。
+#    ⚠️ 本地改过文件的才停下来问：那种情况下强切会毁掉他自己的东西。
 if [ -d "$HERE/.git" ]; then
     say "· 更新本 skill…"
-    if git -C "$HERE" pull --quiet --ff-only 2>/dev/null; then
-        say "✓ 已是最新（$(cat "$HERE/VERSION" 2>/dev/null | tr -d '[:space:]')）"
+    OLD=$(cat "$HERE/VERSION" 2>/dev/null | tr -d '[:space:]')
+    if ! git -C "$HERE" fetch --quiet --depth 1 origin main 2>/dev/null; then
+        say "  ⚠ 连不上 github.com，这次没更新。"
+        say "    ⚠️ **当前仍是旧版 ${OLD:-?}**，下面的自检针对的是旧版。"
+    elif [ "$(git -C "$HERE" rev-parse HEAD 2>/dev/null)" \
+         = "$(git -C "$HERE" rev-parse FETCH_HEAD 2>/dev/null)" ]; then
+        say "✓ 已是最新（${OLD:-?}）"
+    elif git -C "$HERE" diff-index --quiet HEAD -- 2>/dev/null; then
+        # 上一行已确认**本地一个跟踪文件都没改过**，所以直接切到线上那一版是安全的：
+        # 没有东西会丢，未跟踪的文件（.wikipali 底座）也原地不动。
+        # ⚠️ 为什么不用 git pull / merge --ff-only：装机都是 --depth 1 浅克隆，
+        #    浅克隆里根本判不了「能不能快进」，正常升级也会被判成失败——
+        #    上一版就是卡在这，于是「重跑一次就是更新」又变成假话。
+        # ⚠️ 用 checkout -B 而不是 reset --hard，是因为它顺带把 detached HEAD 接回 main。
+        git -C "$HERE" checkout --quiet -B main FETCH_HEAD
+        say "✓ 已更新到最新（${OLD:-?} → $(cat "$HERE/VERSION" 2>/dev/null | tr -d '[:space:]')）"
     else
-        # ⚠️ 别默默跳过——那样使用者会以为更新过了，其实还在旧版上。
-        #    最常见的两种情况分开说，各给一条能照抄的命令。
-        if ! git -C "$HERE" symbolic-ref -q HEAD >/dev/null 2>&1; then
-            say "  ⚠ 当前不在分支上（detached HEAD，多半是按 tag 克隆的），无法自动更新。"
-            say "    要跟上最新版："
-            say "        git -C \"$HERE\" fetch --depth 1 origin main && \\"
-            say "        git -C \"$HERE\" checkout -B main FETCH_HEAD"
-        else
-            say "  ⚠ 更新失败（多半是本地改过文件，或者暂时连不上 github.com）。"
-            say "    ⚠️ **当前仍是旧版 $(cat "$HERE/VERSION" 2>/dev/null | tr -d '[:space:]')**，下面的自检针对的是旧版。"
-            say "    本地没有要保留的改动就可以强制跟上："
-            say "        git -C \"$HERE\" fetch --depth 1 origin main && \\"
-            say "        git -C \"$HERE\" reset --hard FETCH_HEAD"
-        fi
+        # 本地改过跟踪文件。**不强切**——那会毁掉使用者自己的东西。
+        say "  ⚠ 本地改过文件，为免弄丢你的改动，这次没有自动更新。"
+        say "    ⚠️ **当前仍是旧版 ${OLD:-?}**，下面的自检针对的是旧版。"
+        say "    改过的是这些："
+        git -C "$HERE" diff-index --name-only HEAD -- 2>/dev/null | sed 's/^/        /'
+        say "    确认这些改动不要了，就强制跟上最新版："
+        say "        git -C \"$HERE\" checkout -B main FETCH_HEAD"
     fi
 fi
 
